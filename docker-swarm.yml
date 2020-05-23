@@ -1,0 +1,45 @@
+version: '3'
+services:
+  dbgame:
+    image: mysql:5.7
+    volumes:
+       - data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: "rootpwdgame"
+      MYSQL_DATABASE: "battleboat"
+      MYSQL_USER: "battleuser"
+      MYSQL_PASSWORD: "battlepass"
+    networks:
+      - network_game
+    deploy:
+      replicas: 4
+      update_config:
+        delay: 5s
+      restart_policy:
+        condition: on-failure
+        window: 120s
+        max_attempts: 3
+      placement:
+        constraints: [node.role == worker]
+
+  battlegame:
+    image: game_image
+    depends_on:
+      - dbgame
+    ports:
+      - 80:3000
+    volumes:
+      - ./battleboat:/etc/backend/static
+    environment:
+      DATABASE_HOST: "dbgame"
+      DATABASE_PORT: 3306
+      DATABASE_USER: "battleuser"
+      DATABASE_PASSWORD: "battlepass"
+      DATABASE_NAME: "battleboat"
+    networks:
+      - network_game
+
+volumes:
+  data:
+networks:
+  network_game:

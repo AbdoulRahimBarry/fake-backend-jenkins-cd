@@ -1,0 +1,86 @@
+# connect to docker hub
+- name: Log into DockerHub
+  docker_login:
+    username: "{{ var_docker_hub_login }}"
+    password: "{{ var_docker_hub_password }}"
+
+# Creact file	
+- name: Change file ownership, group and permissions
+  file:
+    path: "{{ house }}/new_folder"
+    state: directory
+
+# Copy private keys in target    
+- name: Copy file with owner and permissions
+  copy:
+    content: "{{ var_my_private_key }}"
+    dest: "{{ house }}/.ssh/id_rsa"
+    owner: centos
+    
+# Example git checkout from Ansible Playbooks
+- git:
+    repo: "{{ var_repository_github }}"
+    dest: "{{ house }}/new_folder"
+    key_file: "{{ house }}/.ssh/id_rsa"
+    accept_hostkey: yes
+    force: yes
+    version: "{{ repository_brach }}"
+    recursive: no
+
+# build and push image   
+- name: Build an image and push it to a private repo
+  docker_image:
+    build:
+      path: "{{ house }}/new_folder/fake-backend/"
+    name: "{{ var_docker_hub_login }}/game_image"
+    tag: "{{ repository_tag }}"
+    push: yes
+    source: build
+
+# creact network   
+- name: Create a network
+  docker_network:
+    name: network_battleboat
+
+- name: Create a volume
+  docker_volume:
+    name: data
+         
+# deploy dbgame   
+# Pour le volume les données se trouver dans le container je fait une copy du container dans data
+- name: Create a data container db
+  docker_container:
+    name: dbgame
+    image: mysql:5.7
+    state: started 
+    volumes:
+      - "data:/var/lib/mysql"
+    networks:
+      - name: network_battleboat
+    env:
+      MYSQL_ROOT_PASSWORD: "rootpwdgame"
+      MYSQL_DATABASE: "battleboat"
+      MYSQL_USER: "battleuser"
+      MYSQL_PASSWORD: "battlepass"
+
+
+# deploy api  
+# La page se trouve dans battleboat je fait une copy dans le repetoir du container /etc/backend/static
+- name: Create a data container api
+  docker_container:
+    name: frontend
+    image: "{{var_docker_hub_login}}/game_image:{{repository_tag}}"
+    state: started
+    volumes:
+      - "{{ house }}/new_folder/battleboat:/etc/backend/static"
+    networks:
+      - name: network_battleboat
+    ports:
+     - "80:3000"
+    env:
+      DATABASE_HOST: "dbgame"
+      DATABASE_PORT: "3306"
+      DATABASE_USER: "battleuser"
+      DATABASE_PASSWORD: "battlepass"
+      DATABASE_NAME: "battleboat"
+
