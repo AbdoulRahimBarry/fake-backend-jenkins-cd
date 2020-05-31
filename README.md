@@ -1,5 +1,5 @@
-********************Jenkins_DC******************************************
-------------------Remqrque-----------------------------------
+Jenkins_DC
+Remqrque
 sudo ln -s /usr/local/bin/docker-compose /usr/bin/ ( )
 	/usr/local/bin/docker-compose : lien existant
 	/usr/bin/ : lien symbolique
